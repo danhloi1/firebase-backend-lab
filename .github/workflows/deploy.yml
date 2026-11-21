@@ -1,0 +1,37 @@
+name: Build and Deploy to Firebase
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install & Build Angular Frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install & Build Cloud Functions
+        working-directory: ./functions
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy Rules, Functions & Hosting to Firebase
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only firestore:rules,functions,hosting --project my-first-app-r-d
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

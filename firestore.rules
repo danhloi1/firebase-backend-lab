@@ -1,55 +1,38 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAuthenticated() {
-      return request.auth != null;
+    // Kiểm tra quyền Admin qua Custom Claims
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
     }
 
-    function hasRequiredFields(data) {
-      return data.keys().hasAll(['name', 'city']);
+    // Kiểm tra tài khoản email trường (.edu.vn) đã xác minh
+    function isVerifiedStudent() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('.*@.*\\.edu\\.vn$');
     }
 
-    function hasOnlySchoolFields(data) {
-      return data.keys().hasOnly([
-        'name',
-        'city',
-        'district',
-        'majorGroup',
-        'admissionScore'
-      ]);
-    }
-
-    function isValidSchool(data) {
-      return hasRequiredFields(data) &&
-        hasOnlySchoolFields(data) &&
-        data.name is string && data.name.size() > 0 && data.name.size() <= 160 &&
-        data.city is string && data.city.size() > 0 && data.city.size() <= 100 &&
-        (!('district' in data) ||
-          (data.district is string && data.district.size() > 0 && data.district.size() <= 100)) &&
-        (!('majorGroup' in data) ||
-          (data.majorGroup is string && data.majorGroup.size() > 0 && data.majorGroup.size() <= 160)) &&
-        (!('admissionScore' in data) ||
-          (data.admissionScore is number && data.admissionScore >= 0 && data.admissionScore <= 30));
-    }
-
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
+    // Bảng danh sách trường: ai cũng đọc được, chỉ Admin được sửa/xóa
     match /schools/{schoolId} {
       allow read: if true;
-      allow create, update: if isAuthenticated() && isValidSchool(request.resource.data);
-      allow delete: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
-    match /{document=**} {
-      allow read: if true;
+    // Bảng đánh giá (reviews)
+    match /reviews/{reviewId} {
+      // Công khai chỉ đọc bài đã duyệt; Admin hoặc chính tác giả đọc được bài của mình
+      allow read: if resource.data.status == 'approved'
+                  || isAdmin()
+                  || (request.auth != null && resource.data.authorUid == request.auth.uid);
+
+      // Sinh viên email trường chỉ được tạo bài mới với trạng thái bắt buộc là 'pending'
+      allow create: if isVerifiedStudent()
+                    && request.resource.data.authorUid == request.auth.uid
+                    && request.resource.data.status == 'pending';
+
+      // Chỉ Admin mới được duyệt/từ chối hoặc xóa
+      allow update, delete: if isAdmin();
     }
   }
 }
