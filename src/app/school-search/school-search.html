@@ -1,0 +1,126 @@
+<main class="school-finder" aria-labelledby="page-title">
+	<div class="finder-shell">
+		<header class="page-heading">
+			<div>
+				<p class="eyebrow">CẨM NANG GIÁO DỤC · TP. HỒ CHÍ MINH</p>
+				<h1 id="page-title">Tìm trường đại học <span>tại TP.HCM</span></h1>
+				<p class="intro">Khám phá các trường đại học trong danh sách.</p>
+			</div>
+			<div class="heading-mark" aria-hidden="true"><span>THÀNH PHỐ</span><strong>HCM</strong></div>
+		</header>
+
+		<section class="search-panel" aria-label="Tìm kiếm trường đại học">
+			<label for="school-query">Tên trường</label>
+			<input
+				id="school-query"
+				type="search"
+				autocomplete="off"
+				placeholder="Ví dụ: Bách Khoa, HUTECH..."
+				[value]="searchTerm()"
+				(input)="updateSearch($event)"
+			/>
+			@if (!isLoading() && !loadError()) {
+				<p class="result-count" aria-live="polite">
+					{{ filteredSchools().length }} trường phù hợp
+				</p>
+			}
+		</section>
+
+		@if (canManage()) {
+		<section class="management-section" aria-labelledby="add-school-title">
+			<div class="section-heading">
+				<div>
+					<p class="eyebrow">ĐÓNG GÓP THÔNG TIN</p>
+					<h2 id="add-school-title">Thêm trường đại học</h2>
+				</div>
+			</div>
+
+			<form class="school-form" (submit)="addSchool($event)">
+				<div class="form-grid">
+					<label class="form-field">
+						<span>Tên trường</span>
+						<input type="text" autocomplete="organization" placeholder="Tên trường đại học" [formField]="schoolForm.name" />
+						@if (schoolForm.name().touched() && schoolForm.name().invalid()) {
+							<small>{{ schoolForm.name().errors()[0]?.message }}</small>
+						}
+					</label>
+					<label class="form-field">
+						<span>Quận/Huyện</span>
+						<input type="text" autocomplete="address-level2" placeholder="Ví dụ: Quận 10" [formField]="schoolForm.district" />
+						@if (schoolForm.district().touched() && schoolForm.district().invalid()) {
+							<small>{{ schoolForm.district().errors()[0]?.message }}</small>
+						}
+					</label>
+					<label class="form-field">
+						<span>Nhóm ngành đào tạo</span>
+						<input type="text" placeholder="Ví dụ: Kỹ thuật - Công nghệ" [formField]="schoolForm.majorGroup" />
+						@if (schoolForm.majorGroup().touched() && schoolForm.majorGroup().invalid()) {
+							<small>{{ schoolForm.majorGroup().errors()[0]?.message }}</small>
+						}
+					</label>
+					<label class="form-field">
+						<span>Điểm chuẩn tham khảo</span>
+						<input type="number" inputmode="decimal" step="0.1" placeholder="Ví dụ: 24.5" [formField]="schoolForm.admissionScore" />
+						@if (schoolForm.admissionScore().touched() && schoolForm.admissionScore().invalid()) {
+							<small>{{ schoolForm.admissionScore().errors()[0]?.message }}</small>
+						}
+					</label>
+				</div>
+				<div class="form-actions">
+					<button class="add-button" type="submit" [disabled]="isSaving() || isLoading()">
+						{{ isSaving() ? 'Đang lưu...' : 'Thêm trường' }}
+					</button>
+				</div>
+			</form>
+		</section>
+		}
+
+		<ul class="school-list" aria-label="Danh sách trường đại học">
+			@if (isLoading()) {
+				<li class="loading-state" role="status">Đang tải danh sách trường...</li>
+			} @else if (loadError(); as error) {
+				<li class="load-error" role="alert">
+					<strong>Không thể tải danh sách trường</strong>
+					<p>{{ error }}</p>
+				</li>
+			} @else {
+				@for (school of filteredSchools(); track school.id; let index = $index) {
+					<li class="school-item">
+						<span class="school-index" aria-hidden="true">{{ (index + 1).toString().padStart(2, '0') }}</span>
+						<div class="school-details">
+							<h2>{{ school.name }}</h2>
+							<p>{{ school.city }}</p>
+							<p>Quận/Huyện: {{ school.district || 'Chưa cập nhật' }}</p>
+							<p>Nhóm ngành: {{ school.majorGroup || 'Chưa cập nhật' }}</p>
+							<p>Điểm chuẩn tham khảo: {{ school.admissionScore ?? 'Chưa cập nhật' }}</p>
+						</div>
+						@if (canManage()) {
+						<button
+							class="delete-button"
+							type="button"
+							[attr.aria-label]="'Xóa ' + school.name"
+							[disabled]="isSaving() || deletingSchoolId() !== null"
+							(click)="deleteSchool(school)"
+						>
+							{{ deletingSchoolId() === school.id ? 'Đang xóa...' : 'Xóa' }}
+						</button>
+						}
+					</li>
+				} @empty {
+					<li class="no-results">
+						<strong>Không tìm thấy trường phù hợp</strong>
+						<p>Thử một từ khóa khác để xem danh sách trường.</p>
+					</li>
+				}
+			}
+		</ul>
+		@if (mutationError() && !isSaving()) {
+			<p class="mutation-error list-error" role="alert">{{ mutationError() }}</p>
+		}
+
+		<footer class="page-footer">
+			<span>Danh sách trường đại học</span>
+			<span>TP. Hồ Chí Minh <span aria-hidden="true">·</span> Việt Nam</span>
+		</footer>
+	</div>
+</main>
